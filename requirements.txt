@@ -1,0 +1,28 @@
+# Core ML / LLM Libraries
+vllm>=0.6.0
+transformers>=4.45.0
+torch>=2.4.0
+accelerate>=0.34.0
+deepspeed>=0.15.0
+
+# Fine-tuning Libraries
+peft>=0.13.0
+bitsandbytes>=0.45.0
+
+# Web Framework
+streamlit>=1.40.0
+
+# Visualization
+plotly>=5.24.0
+pandas>=2.2.0
+
+# HTTP Client
+requests>=2.32.0
+
+# Utilities
+python-dotenv>=1.0.0
+
+# Optional (for development)
+numpy>=2.0.0
+scipy>=1.14.0
+scikit-learn>=1.5.0

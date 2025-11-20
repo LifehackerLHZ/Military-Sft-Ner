@@ -1,0 +1,118 @@
+version: '3.8'
+
+services:
+  # Base Model Service (Qwen3-4B without LoRA)
+  base-model-service:
+    image: llamafactory:latest
+    container_name: qwen3-base-service
+    command: /bin/bash -c "
+      echo 'Starting Base Model Service on GPU 0...' &&
+      export CUDA_VISIBLE_DEVICES=0 &&
+      cd /home/ubuntu/SFT-ner/military-ner-project &&
+      vllm serve ./saves/Qwen3-4B
+        --port 8003
+        --host 0.0.0.0
+        --trust-remote-code
+        --max-model-len 8192
+        --served-model-name qwen3-base
+        --tensor-parallel-size 1
+    "
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+    volumes:
+      - /home/ubuntu/SFT-ner/military-ner-project:/home/ubuntu/SFT-ner/military-ner-project
+      - /home/ubuntu/SFT-ner/military-ner-project/saves:/home/ubuntu/SFT-ner/military-ner-project/saves
+    ports:
+      - "8003:8003"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/v1/models"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - ner-showcase-network
+
+  # LoRA Model Service (ner_zero3)
+  lora-model-service:
+    image: llamafactory:latest
+    container_name: qwen3-lora-service
+    command: /bin/bash -c "
+      echo 'Starting LoRA Model Service on GPU 0...' &&
+      export CUDA_VISIBLE_DEVICES=0 &&
+      cd /home/ubuntu/SFT-ner/military-ner-project &&
+      vllm serve ./saves/Qwen3-4B
+        --enable-lora
+        --lora-modules qwen3-ner-zero3=saves/Qwen3-4B/lora/ner_zero3/
+        --host 0.0.0.0
+        --port 8002
+        --trust-remote-code
+        --max-model-len 12288
+        --served-model-name qwen3-ner-zero3
+        --tensor-parallel-size 1
+    "
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+    volumes:
+      - /home/ubuntu/SFT-ner/military-ner-project:/home/ubuntu/SFT-ner/military-ner-project
+      - /home/ubuntu/SFT-ner/military-ner-project/saves:/home/ubuntu/SFT-ner/military-ner-project/saves
+    ports:
+      - "8002:8002"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/v1/models"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - ner-showcase-network
+
+  # Streamlit Demo Application
+  streamlit-demo:
+    image: llamafactory:latest
+    container_name: ner-demo-app
+    command: /bin/bash -c "
+      echo 'Waiting for API services...' &&
+      sleep 90 &&
+      cd /home/ubuntu/SFT-ner/military-ner-showcase &&
+      streamlit run demo/app.py
+        --server.port 8501
+        --server.address 0.0.0.0
+        --server.headless true
+        --server.fileWatcherType none
+    "
+    volumes:
+      - /home/ubuntu/SFT-ner/military-ner-showcase:/home/ubuntu/SFT-ner/military-ner-showcase
+      - /home/ubuntu/SFT-ner/military-ner-project:/home/ubuntu/SFT-ner/military-ner-project
+    ports:
+      - "8501:8501"
+    environment:
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+      - BASE_API_URL=http://base-model-service:8003
+      - LORA_API_URL=http://lora-model-service:8002
+    depends_on:
+      base-model-service:
+        condition: service_healthy
+      lora-model-service:
+        condition: service_healthy
+    networks:
+      - ner-showcase-network
+
+networks:
+  ner-showcase-network:
+    driver: bridge
