@@ -10,7 +10,9 @@
 
 SFT-ner is a comprehensive Named Entity Recognition (NER) system specifically designed for the military domain. This project demonstrates end-to-end machine learning engineering capabilities, from model fine-tuning to production deployment.
 
-**Live Demo**: http://43.143.128.41:8501
+
+[![Live Demo](https://img.shields.io/badge/demo-online-green.svg)](http://43.143.128.41:8501)
+
 ![alt text](image.png)
 
 ## ✨ Key Features
